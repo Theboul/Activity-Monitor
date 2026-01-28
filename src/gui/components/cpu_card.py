@@ -39,7 +39,8 @@ class CPUCard(ctk.CTkFrame):
             self, 
             text="Intel Core i7 - 8 Cores", 
             font=("Arial", 14), 
-            text_color="gray"
+            text_color="gray",
+            wraplength=250  # Ajusta el texto automáticamente
         )
         self.cpu_info_label.pack(pady=(0, 20))
         

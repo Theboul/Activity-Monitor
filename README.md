@@ -181,7 +181,7 @@ Aplicación de escritorio multiplataforma con capacidades de monitoreo de sistem
 ## 4. Restricciones Técnicas
 
 ### 4.1 Tecnologías Obligatorias
-- **Lenguaje:** Python 3.8 o superior
+- **Lenguaje:** Python 3.10 o superior
 - **Framework GUI:** CustomTkinter
 - **Librería de Sistema:** psutil
 - **Control de Versiones:** Git
