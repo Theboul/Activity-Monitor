@@ -123,7 +123,8 @@ class ProcessMonitor(BaseMonitor):
         if burst_time is None:
             burst_time = random.randint(5, 15)
         
-        arrival_time = time.time()
+        # Tiempo de llegada simulado secuencial (0, 1, 2, ...)
+        arrival_time = len(self.selected_processes)
         
         process = Process(
             pid=pid,
@@ -175,16 +176,16 @@ class ProcessMonitor(BaseMonitor):
                 current_time = process.arrival_time
             
             # Tiempo de inicio
-            process.start_time = int(current_time)
+            process.start_time = current_time
             
             # El proceso se ejecuta completamente
             current_time += process.burst_time
             
             # Tiempo de finalización (Tf)
-            process.completion_time = int(current_time)
+            process.completion_time = current_time
             
             # Tiempo de retorno (Tr) = Tf - Tll
-            process.turnaround_time = int(process.completion_time - process.arrival_time)
+            process.turnaround_time = process.completion_time - process.arrival_time
             
             # Tiempo de espera (Te) = Tr - Ts (según fórmula académica)
             process.waiting_time = process.turnaround_time - process.burst_time
@@ -200,26 +201,16 @@ class ProcessMonitor(BaseMonitor):
         # Calcular promedios y métricas
         avg_waiting = sum(p.waiting_time for p in processes) / len(processes)
         avg_turnaround = sum(p.turnaround_time for p in processes) / len(processes)
-        avg_response = sum(p.start_time - p.arrival_time for p in processes) / len(processes)
-        
-        # Throughput: procesos completados por unidad de tiempo
-        throughput = len(processes) / current_time if current_time > 0 else 0
-        
-        # CPU Utilization: porcentaje de tiempo que la CPU estuvo ocupada
-        total_burst = sum(p.burst_time for p in processes)
-        cpu_utilization = (total_burst / current_time * 100) if current_time > 0 else 0
         
         results = {
             'algorithm': 'FIFO',
             'processes': [p.to_dict() for p in processes],
             'execution_order': execution_order,
             'statistics': {
-                'avg_waiting_time': round(avg_waiting, 1),
-                'avg_turnaround_time': round(avg_turnaround, 1),
-                'avg_response_time': round(avg_response, 1),
-                'throughput': round(throughput, 1),
-                'cpu_utilization': round(cpu_utilization, 1),
-                'total_time': int(current_time)
+                'avg_waiting_time': int(avg_waiting),
+                'avg_turnaround_time': int(avg_turnaround),
+                'total_time': current_time,
+                'num_processes': len(processes)
             }
         }
         
@@ -262,16 +253,16 @@ class ProcessMonitor(BaseMonitor):
                 process = ready_queue.pop(0)
                 
                 # Tiempo de inicio
-                process.start_time = int(current_time)
+                process.start_time = current_time
                 
                 # El proceso se ejecuta completamente
                 current_time += process.burst_time
                 
                 # Tiempo de finalización (Tf)
-                process.completion_time = int(current_time)
+                process.completion_time = current_time
                 
                 # Tiempo de retorno (Tr) = Tf - Tll
-                process.turnaround_time = int(process.completion_time - process.arrival_time)
+                process.turnaround_time = process.completion_time - process.arrival_time
                 
                 # Tiempo de espera (Te) = Tr - Ts (según fórmula académica)
                 process.waiting_time = process.turnaround_time - process.burst_time
@@ -293,26 +284,16 @@ class ProcessMonitor(BaseMonitor):
         # Calcular promedios y métricas
         avg_waiting = sum(p.waiting_time for p in completed_processes) / len(completed_processes)
         avg_turnaround = sum(p.turnaround_time for p in completed_processes) / len(completed_processes)
-        avg_response = sum(p.start_time - p.arrival_time for p in completed_processes) / len(completed_processes)
-        
-        # Throughput: procesos completados por unidad de tiempo
-        throughput = len(completed_processes) / current_time if current_time > 0 else 0
-        
-        # CPU Utilization: porcentaje de tiempo que la CPU estuvo ocupada
-        total_burst = sum(p.burst_time for p in completed_processes)
-        cpu_utilization = (total_burst / current_time * 100) if current_time > 0 else 0
         
         results = {
             'algorithm': 'SJF',
             'processes': [p.to_dict() for p in completed_processes],
             'execution_order': execution_order,
             'statistics': {
-                'avg_waiting_time': round(avg_waiting, 1),
-                'avg_turnaround_time': round(avg_turnaround, 1),
-                'avg_response_time': round(avg_response, 1),
-                'throughput': round(throughput, 1),
-                'cpu_utilization': round(cpu_utilization, 1),
-                'total_time': int(current_time)
+                'avg_waiting_time': int(avg_waiting),
+                'avg_turnaround_time': int(avg_turnaround),
+                'total_time': current_time,
+                'num_processes': len(completed_processes)
             }
         }
         
@@ -390,28 +371,16 @@ class ProcessMonitor(BaseMonitor):
         avg_waiting = sum(p.waiting_time for p in completed_processes) / len(completed_processes)
         avg_turnaround = sum(p.turnaround_time for p in completed_processes) / len(completed_processes)
         
-        # Calcular métricas adicionales
-        avg_response = sum(p.start_time - p.arrival_time for p in completed_processes) / len(completed_processes)
-        
-        # Throughput: procesos completados por unidad de tiempo
-        throughput = len(completed_processes) / current_time if current_time > 0 else 0
-        
-        # CPU Utilization: porcentaje de tiempo que la CPU estuvo ocupada
-        total_burst = sum(p.burst_time for p in completed_processes)
-        cpu_utilization = (total_burst / current_time * 100) if current_time > 0 else 0
-        
         results = {
             'algorithm': 'Round Robin',
             'quantum': self.quantum,
             'processes': [p.to_dict() for p in completed_processes],
             'execution_order': execution_order,
             'statistics': {
-                'avg_waiting_time': round(avg_waiting, 1),
-                'avg_turnaround_time': round(avg_turnaround, 1),
-                'avg_response_time': round(avg_response, 1),
-                'throughput': round(throughput, 1),
-                'cpu_utilization': round(cpu_utilization, 1),
-                'total_time': int(current_time),
+                'avg_waiting_time': int(avg_waiting),
+                'avg_turnaround_time': int(avg_turnaround),
+                'total_time': current_time,
+                'num_processes': len(completed_processes),
                 'context_switches': len(execution_order) - 1
             }
         }

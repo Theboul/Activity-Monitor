@@ -5,6 +5,7 @@ Interfaz para el simulador semi-real de algoritmos de despacho
 import customtkinter as ctk
 from tkinter import messagebox
 from typing import Optional, Dict, Any
+from ..windows.results_window import ResultsWindow
 
 
 class ProcessTab(ctk.CTkFrame):
@@ -105,6 +106,7 @@ class ProcessTab(ctk.CTkFrame):
         """Crea el panel de resultados y configuración de algoritmos"""
         right_frame = ctk.CTkFrame(self)
         right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        right_frame.grid_rowconfigure(1, weight=1)  # Permitir que el área de resultados se expanda
         
         # Título
         title = ctk.CTkLabel(
@@ -176,22 +178,33 @@ class ProcessTab(ctk.CTkFrame):
         )
         btn_compare.pack(fill="x", padx=5, pady=10)
         
-        # Área de resultados (scrollable)
-        results_label = ctk.CTkLabel(
-            right_frame,
-            text="Resultados de la Simulación",
-            font=("Arial", 13, "bold")
-        )
-        results_label.pack(pady=(10, 5))
+        # Mensaje informativo
+        info_frame = ctk.CTkFrame(right_frame)
+        info_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        self.results_text = ctk.CTkTextbox(
-            right_frame,
-            font=("Courier New", 11),
-            wrap="word"
-        )
-        self.results_text.pack(fill="both", expand=True, padx=10, pady=5)
-        self.results_text.insert("1.0", "Selecciona procesos y ejecuta un algoritmo para ver los resultados...")
-        self.results_text.configure(state="disabled")
+        ctk.CTkLabel(
+            info_frame,
+            text="ℹ️ Información",
+            font=("Arial", 14, "bold")
+        ).pack(pady=(20, 10))
+        
+        ctk.CTkLabel(
+            info_frame,
+            text="Los resultados se mostrarán en\nuna ventana emergente",
+            font=("Arial", 12),
+            text_color="gray"
+        ).pack(pady=10)
+        
+        ctk.CTkLabel(
+            info_frame,
+            text="✓ Selecciona procesos del sistema\n"
+                 "✓ Ejecuta un algoritmo\n"
+                 "✓ Visualiza los resultados completos\n"
+                 "✓ Compara múltiples algoritmos",
+            font=("Arial", 11),
+            text_color="#5a5a5a",
+            justify="left"
+        ).pack(pady=20)
     
     def _load_real_processes(self):
         """Carga y muestra los procesos reales del sistema"""
@@ -316,7 +329,7 @@ class ProcessTab(ctk.CTkFrame):
             return
         
         results = self.process_monitor.run_fifo()
-        self._display_results(results)
+        self._open_results_window(results)
     
     def _run_sjf(self):
         """Ejecuta el algoritmo SJF"""
@@ -325,7 +338,7 @@ class ProcessTab(ctk.CTkFrame):
             return
         
         results = self.process_monitor.run_sjf()
-        self._display_results(results)
+        self._open_results_window(results)
     
     def _run_round_robin(self):
         """Ejecuta el algoritmo Round Robin"""
@@ -342,7 +355,7 @@ class ProcessTab(ctk.CTkFrame):
             return
         
         results = self.process_monitor.run_round_robin(quantum)
-        self._display_results(results)
+        self._open_results_window(results)
     
     def _compare_algorithms(self):
         """Compara los tres algoritmos"""
@@ -357,100 +370,11 @@ class ProcessTab(ctk.CTkFrame):
             pass
         
         comparison = self.process_monitor.get_statistics_comparison()
-        self._display_comparison(comparison)
+        self._open_results_window(comparison, is_comparison=True)
     
-    def _display_results(self, results: Dict[str, Any]):
-        """Muestra los resultados de un algoritmo en el textbox"""
-        self.results_text.configure(state="normal")
-        self.results_text.delete("1.0", "end")
-        
-        algorithm = results.get('algorithm', 'Unknown')
-        stats = results.get('statistics', {})
-        processes = results.get('processes', [])
-        execution = results.get('execution_order', [])
-        
-        # Título
-        output = f"{'='*60}\n"
-        output += f"  ALGORITMO: {algorithm}\n"
-        output += f"{'='*60}\n\n"
-        
-        # Información del quantum si es Round Robin
-        if 'quantum' in results:
-            output += f"⏱️  Quantum: {results['quantum']}\n\n"
-        
-        # Tabla de procesos
-        output += "📋 TABLA DE PROCESOS:\n"
-        output += "-" * 60 + "\n"
-        output += f"{'Proceso':<20} {'Burst':>6} {'Espera':>8} {'Retorno':>8}\n"
-        output += "-" * 60 + "\n"
-        
-        for proc in processes:
-            name = proc['name'][:18]
-            output += f"{name:<20} {proc['burst_time']:>6} {proc['waiting_time']:>8} {proc['turnaround_time']:>8}\n"
-        
-        output += "-" * 60 + "\n\n"
-        
-        # Orden de ejecución
-        output += "⚡ ORDEN DE EJECUCIÓN:\n"
-        for i, exec_info in enumerate(execution, 1):
-            output += f"  {i}. {exec_info['name']} [{exec_info['start']}→{exec_info['end']}]"
-            if 'remaining' in exec_info:
-                output += f" (quedan {exec_info['remaining']})"
-            output += "\n"
-        
-        output += "\n"
-        
-        # Estadísticas
-        output += "📊 ESTADÍSTICAS:\n"
-        output += f"  • Tiempo Promedio de Espera:    {stats.get('avg_waiting_time', 0):.2f}\n"
-        output += f"  • Tiempo Promedio de Retorno:   {stats.get('avg_turnaround_time', 0):.2f}\n"
-        output += f"  • Tiempo Total de Ejecución:    {stats.get('total_time', 0)}\n"
-        
-        if 'context_switches' in stats:
-            output += f"  • Cambios de Contexto:          {stats['context_switches']}\n"
-        
-        self.results_text.insert("1.0", output)
-        self.results_text.configure(state="disabled")
-    
-    def _display_comparison(self, comparison: Dict[str, Any]):
-        """Muestra la comparación de los tres algoritmos"""
-        self.results_text.configure(state="normal")
-        self.results_text.delete("1.0", "end")
-        
-        comp = comparison.get('comparison', {})
-        
-        output = f"{'='*60}\n"
-        output += f"  🔬 COMPARACIÓN DE ALGORITMOS\n"
-        output += f"{'='*60}\n\n"
-        
-        output += f"{'Algoritmo':<20} {'T.Espera':>12} {'T.Retorno':>12} {'T.Total':>10}\n"
-        output += "-" * 60 + "\n"
-        
-        for algo, stats in comp.items():
-            output += f"{algo:<20} {stats['avg_waiting_time']:>12.2f} {stats['avg_turnaround_time']:>12.2f} {stats['total_time']:>10}\n"
-        
-        output += "-" * 60 + "\n\n"
-        
-        # Análisis
-        output += "💡 ANÁLISIS:\n\n"
-        
-        # Mejor tiempo de espera
-        best_wait = min(comp.items(), key=lambda x: x[1]['avg_waiting_time'])
-        output += f"⭐ Mejor Tiempo de Espera: {best_wait[0]}\n"
-        output += f"   ({best_wait[1]['avg_waiting_time']:.2f} unidades)\n\n"
-        
-        # Mejor tiempo de retorno
-        best_turn = min(comp.items(), key=lambda x: x[1]['avg_turnaround_time'])
-        output += f"⭐ Mejor Tiempo de Retorno: {best_turn[0]}\n"
-        output += f"   ({best_turn[1]['avg_turnaround_time']:.2f} unidades)\n\n"
-        
-        output += "📌 CONCLUSIONES:\n"
-        output += "• FIFO: Simple pero puede causar esperas largas\n"
-        output += "• SJF: Minimiza espera promedio, favorece procesos cortos\n"
-        output += "• Round Robin: Equitativo, mejor para interactividad\n"
-        
-        self.results_text.insert("1.0", output)
-        self.results_text.configure(state="disabled")
+    def _open_results_window(self, results: Dict[str, Any], is_comparison: bool = False):
+        """Abre una ventana emergente con los resultados"""
+        ResultsWindow(self, results, is_comparison)
     
     def _show_message(self, message: str, msg_type: str = "info"):
         """Muestra un mensaje temporal en la UI"""
