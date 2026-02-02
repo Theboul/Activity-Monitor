@@ -7,9 +7,9 @@ import platform
 from typing import Dict, Any
 from ..base_monitor import BaseMonitor
 
-#Para esta clase se usa la clase base monitor para usar los hilos 
-#y el sistema de callbacks, para mandar los datos recolectados se usa el metodo collect_data
-#de tipo Dict[str, Any] (Listas de tipo Diccionario) que contiene 
+# Para esta clase se usa la clase base monitor para usar los hilos 
+# y el sistema de callbacks, para mandar los datos recolectados se usa el metodo collect_data
+# de tipo Dict[str, Any] (Listas de tipo Diccionario) que contiene 
 # la informacion de cpu, ram y almacenamiento
 class HardwareMonitor(BaseMonitor):
     """
@@ -123,13 +123,13 @@ class HardwareMonitor(BaseMonitor):
         """
         Obtiene datos del disco principal del sistema
         
-        En Windows usa C:, en Unix usa /
+        En Windows usa C:
         
         Returns:
             Dict con 'used', 'total', 'free' en GB (int) y 'percent' (float)
         """
         try:
-            # Determinar la partición principal según el OS
+            # Determinar la partición principal según el SO
             if platform.system() == "Windows":
                 partition = "C:\\"
             else:
