@@ -3,7 +3,8 @@ from src.gui.tabs.tab_hardware import HardwareTab
 from src.gui.tabs.tab_process import ProcessTab
 from src.backend.adm_hardware.hardware_monitor import HardwareMonitor
 from src.backend.adm_process_simulator.process_monitor import ProcessMonitor
-
+from src.gui.tabs.tab_usb import USBTab
+from src.backend.adm_storage_unit.storage_monitor import StorageMonitor
 
 class MonitorGUI(ctk.CTk):
     """Ventana principal de la aplicación Monitor de Sistema"""
@@ -103,6 +104,9 @@ class MonitorGUI(ctk.CTk):
         
         # Crear monitor de procesos (no necesita auto-start, es bajo demanda)
         self.process_monitor = ProcessMonitor(update_interval=1.0)
+
+        # NUEVO: Instancia el monitor de USB
+        self.usb_monitor = StorageMonitor(update_interval=3.0)
     
     def _start_monitors(self):
         """Inicia los monitores después de crear la UI"""
@@ -179,6 +183,10 @@ class MonitorGUI(ctk.CTk):
             except Exception as e:
                 print(f"[ERROR] ✗ Error al limpiar process_tab: {e}")
         
+        if hasattr(self, 'usb_monitor'):
+                print("[INFO] 🔧 Deteniendo USB monitor...")
+                self.usb_monitor.stop()
+        
         # 4. Destruir la ventana
         print("[INFO] 💥 Destruyendo ventana...")
         self.destroy()
@@ -202,3 +210,10 @@ class MonitorGUI(ctk.CTk):
             super().destroy()
         except Exception as e:
             print(f"[WARNING] Error en destroy: {e}")
+
+    def _add_usb_tab(self):
+        """Añade la pestaña de Archivos USB real conectada al monitor"""
+        tab = self.tab_view.add("Archivos USB")
+        # Pasamos el monitor como dependencia a la pestaña
+        self.usb_tab = USBTab(tab, self.usb_monitor)
+        self.usb_tab.pack(fill="both", expand=True)
