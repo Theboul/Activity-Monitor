@@ -1,8 +1,10 @@
 import customtkinter as ctk
 from src.gui.tabs.tab_hardware import HardwareTab
 from src.gui.tabs.tab_process import ProcessTab
+from src.gui.tabs.tab_memory import MemoryTab
 from src.backend.adm_hardware.hardware_monitor import HardwareMonitor
 from src.backend.adm_process_simulator.process_monitor import ProcessMonitor
+from src.backend.adm_memory.memory_monitor import MemoryMonitor
 
 
 class MonitorGUI(ctk.CTk):
@@ -19,7 +21,7 @@ class MonitorGUI(ctk.CTk):
         """Configura las propiedades de la ventana principal"""
         self.title("Monitor de Sistema")
         self.geometry("1100x600")
-        self.resizable(False, False)
+        self.resizable(True, True)
         
         # Registrar handler para cerrar la ventana correctamente
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -87,33 +89,35 @@ class MonitorGUI(ctk.CTk):
     def _add_memory_tab(self):
         """Añade la pestaña de Administración de Memoria"""
         tab = self.tab_view.add("Admin Memoria")
-        # TODO: Implementar contenido de la pestaña
-        placeholder = ctk.CTkLabel(
-            tab, 
-            text="Administración de Memoria\n(Por implementar)",
-            font=("Arial", 20),
-            text_color="gray"
-        )
-        placeholder.pack(expand=True)
+        self.memory_tab = MemoryTab(tab, self.memory_monitor)
+        self.memory_tab.pack(fill="both", expand=True)
     
     def _create_monitors(self):
         """Crea las instancias de los monitores (sin iniciar)"""
         # Crear monitor de hardware
         self.hardware_monitor = HardwareMonitor(update_interval=2.0)
-        
+
         # Crear monitor de procesos (no necesita auto-start, es bajo demanda)
         self.process_monitor = ProcessMonitor(update_interval=1.0)
+
+        # Crear monitor de memoria (sí requiere callback para refrescar bloques)
+        self.memory_monitor = MemoryMonitor(update_interval=1.5)
     
     def _start_monitors(self):
         """Inicia los monitores después de crear la UI"""
         # Configurar callback thread-safe para hardware
         self.hardware_monitor.set_callback(self._on_hardware_data_update)
-        
+
         # Iniciar monitoreo de hardware
         self.hardware_monitor.start()
-        
+
         # Hacer una actualización inicial inmediata
         self._update_hardware_initial()
+
+        # Configurar e iniciar monitor de memoria
+        self.memory_monitor.set_callback(self._on_memory_data_update)
+        self.memory_monitor.start()
+        self._update_memory_initial()
     
     def _on_hardware_data_update(self, data):
         """
@@ -145,6 +149,19 @@ class MonitorGUI(ctk.CTk):
         initial_data = self.hardware_monitor.get_current_data()
         if initial_data:
             self._update_hardware_ui(initial_data)
+
+    def _on_memory_data_update(self, data):
+        """Callback del monitor de memoria."""
+        self.after(0, self._update_memory_ui, data)
+
+    def _update_memory_ui(self, data):
+        if hasattr(self, 'memory_tab'):
+            self.memory_tab.update_memory_state(data)
+
+    def _update_memory_initial(self):
+        data = self.memory_monitor.get_current_data()
+        if data:
+            self._update_memory_ui(data)
     
     def _on_closing(self):
         """Handler personalizado para cerrar la ventana de forma segura"""
@@ -169,8 +186,17 @@ class MonitorGUI(ctk.CTk):
                 print("[OK] ✓ Process monitor detenido")
             except Exception as e:
                 print(f"[ERROR] ✗ Error al detener process monitor: {e}")
+
+        # 3. Detener monitor de memoria
+        if hasattr(self, 'memory_monitor'):
+            print("[INFO] 🔧 Deteniendo memory monitor...")
+            try:
+                self.memory_monitor.stop()
+                print("[OK] ✓ Memory monitor detenido")
+            except Exception as e:
+                print(f"[ERROR] ✗ Error al detener memory monitor: {e}")
         
-        # 3. Limpiar referencias del tab de procesos
+        # 4. Limpiar referencias del tab de procesos
         if hasattr(self, 'process_tab'):
             print("[INFO] 🧹 Limpiando referencias de process_tab...")
             try:
@@ -178,12 +204,21 @@ class MonitorGUI(ctk.CTk):
                 print("[OK] ✓ Process tab limpiado")
             except Exception as e:
                 print(f"[ERROR] ✗ Error al limpiar process_tab: {e}")
-        
-        # 4. Destruir la ventana
+
+        # 5. Limpiar tab de memoria
+        if hasattr(self, 'memory_tab'):
+            print("[INFO] 🧹 Limpiando referencias de memory_tab...")
+            try:
+                self.memory_tab.cleanup()
+                print("[OK] ✓ Memory tab limpiado")
+            except Exception as e:
+                print(f"[ERROR] ✗ Error al limpiar memory_tab: {e}")
+
+        # 6. Destruir la ventana
         print("[INFO] 💥 Destruyendo ventana...")
         self.destroy()
-        
-        # 5. Forzar salida del programa
+
+        # 7. Forzar salida del programa
         print("[INFO] 🚪 Forzando salida del proceso Python...")
         print("="*60)
         print("[INFO] ✅ APLICACIÓN CERRADA COMPLETAMENTE")
