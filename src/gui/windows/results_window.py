@@ -77,29 +77,36 @@ class ResultsWindow(ctk.CTkToplevel):
             font=("Arial", 16, "bold")
         ).pack(pady=(10, 5))
         
-        # Mostrar secuencia textual
-        sequence_text = " → ".join([f"{ex['name']}" for ex in execution])
+        # Mostrar secuencia resumida
+        if "Round Robin" in algorithm:
+            # Para RR, mostrar secuencia más compacta
+            unique_sequence = []
+            prev_name = None
+            for ex in execution:
+                if ex['name'] != prev_name:
+                    unique_sequence.append(ex['name'])
+                    prev_name = ex['name']
+            sequence_text = " → ".join(unique_sequence[:20])
+            if len(unique_sequence) > 20:
+                sequence_text += " → ..."
+        else:
+            # Para FIFO y SJF, mostrar secuencia completa
+            sequence_text = " → ".join([f"{ex['name']}" for ex in execution])
+        
         ctk.CTkLabel(
             seq_frame,
             text=sequence_text,
-            font=("Arial", 12),
-            wraplength=1100
+            font=("Arial", 11, "bold"),
+            wraplength=1000
         ).pack(pady=10, padx=10)
         
-        # Si es Round Robin, mostrar con detalles de vueltas
+        # Detalles específicos por algoritmo
         if "Round Robin" in algorithm:
-            quantum = self.results.get('quantum', 2)
-            detailed = "\n".join([
-                f"Vuelta {i+1}: {ex['name']} (t={ex['start']}-{ex['end']}, restante={ex.get('remaining', 0)})"
-                for i, ex in enumerate(execution)
-            ])
-            ctk.CTkLabel(
-                seq_frame,
-                text=detailed,
-                font=("Courier", 10),
-                justify="left",
-                text_color="gray"
-            ).pack(pady=5, padx=10)
+            self._display_round_robin_details(seq_frame, execution)
+        elif "FIFO" in algorithm:
+            self._display_fifo_details(seq_frame, execution)
+        elif "SJF" in algorithm:
+            self._display_sjf_details(seq_frame, execution)
         
         # ============ TABLA DE PROCESOS ============
         table_frame = ctk.CTkFrame(container)
@@ -180,6 +187,7 @@ class ResultsWindow(ctk.CTkToplevel):
             quantum_frame.pack(fill="x", padx=10, pady=5)
             quantum_frame.grid_columnconfigure(0, weight=1)
             quantum_frame.grid_columnconfigure(1, weight=1)
+            quantum_frame.grid_columnconfigure(2, weight=1)
             
             self._create_stat_card(
                 quantum_frame,
@@ -192,6 +200,12 @@ class ResultsWindow(ctk.CTkToplevel):
                 "🔀 Cambios de Contexto",
                 str(stats.get('context_switches', 0)),
                 0, 1
+            )
+            self._create_stat_card(
+                quantum_frame,
+                "🔁 Total de Vueltas",
+                str(stats.get('total_rounds', 0)),
+                0, 2
             )
     
     def _display_comparison(self, container):
@@ -301,6 +315,84 @@ class ResultsWindow(ctk.CTkToplevel):
         conclusions.insert("end", "  - Más cambios de contexto, overhead adicional\n")
         
         conclusions.configure(state="disabled")
+    
+    def _display_round_robin_details(self, parent, execution):
+        """Muestra detalles organizados por vueltas para Round Robin"""
+        # Agrupar ejecuciones por vuelta
+        rounds_dict = {}
+        for ex in execution:
+            round_num = ex.get('round', 1)
+            if round_num not in rounds_dict:
+                rounds_dict[round_num] = []
+            rounds_dict[round_num].append(ex)
+        
+        # Frame scrollable para las vueltas
+        details_frame = ctk.CTkScrollableFrame(parent, height=150)
+        details_frame.pack(fill="both", padx=10, pady=5, expand=False)
+        
+        # Mostrar cada vuelta
+        for round_num in sorted(rounds_dict.keys()):
+            round_frame = ctk.CTkFrame(details_frame)
+            round_frame.pack(fill="x", pady=2, padx=5)
+            
+            # Encabezado de la vuelta
+            header_text = f"🔁 Vuelta {round_num}:"
+            ctk.CTkLabel(
+                round_frame,
+                text=header_text,
+                font=("Arial", 11, "bold"),
+                anchor="w"
+            ).pack(side="left", padx=5)
+            
+            # Procesos en esta vuelta
+            processes_in_round = " → ".join([
+                f"{ex['name']} (t={ex['start']}-{ex['end']}, rest={ex.get('remaining', 0)})"
+                for ex in rounds_dict[round_num]
+            ])
+            
+            ctk.CTkLabel(
+                round_frame,
+                text=processes_in_round,
+                font=("Courier", 10),
+                text_color="gray",
+                anchor="w"
+            ).pack(side="left", padx=10)
+    
+    def _display_fifo_details(self, parent, execution):
+        """Muestra detalles de FIFO de forma clara"""
+        details_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        details_frame.pack(fill="x", padx=10, pady=5)
+        
+        timeline = " | ".join([
+            f"{ex['name']} ({ex['start']}-{ex['end']})"
+            for ex in execution
+        ])
+        
+        ctk.CTkLabel(
+            details_frame,
+            text=f"⏱️ Línea de tiempo: {timeline}",
+            font=("Courier", 10),
+            text_color="gray",
+            wraplength=1000
+        ).pack(pady=5)
+    
+    def _display_sjf_details(self, parent, execution):
+        """Muestra detalles de SJF destacando el orden de ejecución"""
+        details_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        details_frame.pack(fill="x", padx=10, pady=5)
+        
+        timeline = " | ".join([
+            f"{ex['name']} [Ts={ex['burst']}] ({ex['start']}-{ex['end']})"
+            for ex in execution
+        ])
+        
+        ctk.CTkLabel(
+            details_frame,
+            text=f"⏱️ Orden por ráfaga: {timeline}",
+            font=("Courier", 10),
+            text_color="gray",
+            wraplength=1000
+        ).pack(pady=5)
     
     def _create_stat_card(self, parent, label: str, value: str, row: int, col: int):
         """Crea una tarjeta de estadística"""
