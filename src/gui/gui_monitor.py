@@ -1,8 +1,10 @@
 import customtkinter as ctk
 from src.gui.tabs.tab_hardware import HardwareTab
 from src.gui.tabs.tab_process import ProcessTab
+from src.gui.tabs.tab_memory import MemoryTab
 from src.backend.adm_hardware.hardware_monitor import HardwareMonitor
 from src.backend.adm_process_simulator.process_monitor import ProcessMonitor
+from src.backend.adm_memory import MemoryMonitor
 from src.gui.tabs.tab_usb import USBTab
 from src.backend.adm_storage_unit.storage_monitor import StorageMonitor
 
@@ -20,7 +22,7 @@ class MonitorGUI(ctk.CTk):
         """Configura las propiedades de la ventana principal"""
         self.title("Monitor de Sistema")
         self.geometry("1100x600")
-        self.resizable(False, False)
+        self.resizable(True, True)
         
         # Registrar handler para cerrar la ventana correctamente
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -88,14 +90,8 @@ class MonitorGUI(ctk.CTk):
     def _add_memory_tab(self):
         """Añade la pestaña de Administración de Memoria"""
         tab = self.tab_view.add("Admin Memoria")
-        # TODO: Implementar contenido de la pestaña
-        placeholder = ctk.CTkLabel(
-            tab, 
-            text="Administración de Memoria\n(Por implementar)",
-            font=("Arial", 20),
-            text_color="gray"
-        )
-        placeholder.pack(expand=True)
+        self.memory_tab = MemoryTab(tab, self.memory_monitor)
+        self.memory_tab.pack(fill="both", expand=True)
     
     def _create_monitors(self):
         """Crea las instancias de los monitores (sin iniciar)"""
@@ -104,6 +100,9 @@ class MonitorGUI(ctk.CTk):
         
         # Crear monitor de procesos (no necesita auto-start, es bajo demanda)
         self.process_monitor = ProcessMonitor(update_interval=1.0)
+
+        # Crear monitor de memoria
+        self.memory_monitor = MemoryMonitor(update_interval=2.0)
 
         # NUEVO: Instancia el monitor de USB
         self.usb_monitor = StorageMonitor(update_interval=3.0)
@@ -183,15 +182,24 @@ class MonitorGUI(ctk.CTk):
             except Exception as e:
                 print(f"[ERROR] ✗ Error al limpiar process_tab: {e}")
         
+        # 4. Detener monitor de memoria
+        if hasattr(self, 'memory_monitor'):
+            print("[INFO] 🔧 Deteniendo memory monitor...")
+            try:
+                self.memory_monitor.stop()
+                print("[OK] ✓ Memory monitor detenido")
+            except Exception as e:
+                print(f"[ERROR] ✗ Error al detener memory monitor: {e}")
+        
         if hasattr(self, 'usb_monitor'):
                 print("[INFO] 🔧 Deteniendo USB monitor...")
                 self.usb_monitor.stop()
         
-        # 4. Destruir la ventana
+        # 5. Destruir la ventana
         print("[INFO] 💥 Destruyendo ventana...")
         self.destroy()
         
-        # 5. Forzar salida del programa
+        # 6. Forzar salida del programa
         print("[INFO] 🚪 Forzando salida del proceso Python...")
         print("="*60)
         print("[INFO] ✅ APLICACIÓN CERRADA COMPLETAMENTE")
