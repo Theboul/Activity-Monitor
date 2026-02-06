@@ -4,3 +4,30 @@ IMPLEMENTACION_STEP1.md
 CASOS_PRUEBA_PROCESOS.md
 GUIA_USO_PROCESOS.md
 PROCESO_SIMULADOR.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

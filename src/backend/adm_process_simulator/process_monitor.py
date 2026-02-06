@@ -4,9 +4,8 @@ Captura procesos reales del sistema y simula algoritmos de despacho
 """
 import psutil
 import random
-import time
 from typing import Dict, List, Any, Optional
-
+import time
 from .Process import Process
 from ..base_monitor import BaseMonitor
 
@@ -59,7 +58,6 @@ class ProcessMonitor(BaseMonitor):
         Returns:
             Lista de diccionarios con información de procesos
         """
-        import time
         
         # Verificar si el caché es válido
         if time.time() - self._cache_timestamp < self._cache_ttl and self._process_cache:
@@ -119,7 +117,7 @@ class ProcessMonitor(BaseMonitor):
         if any(p.pid == pid for p in self.selected_processes):
             raise ValueError(f"El proceso con PID {pid} ({name}) ya está seleccionado")
         
-        # Generar burst time aleatorio si no se proporciona
+        # Generar tiempo de ráfaga aleatorio si no se proporciona
         if burst_time is None:
             burst_time = random.randint(5, 15)
         
@@ -150,6 +148,34 @@ class ProcessMonitor(BaseMonitor):
         """
         if quantum > 0:
             self.quantum = quantum
+    
+    def _terminate_real_process(self, pid: int):
+        """
+        Termina un proceso real del sistema operativo cuando completa su ejecución
+        Equivalente a freeMem(PRUN) en el algoritmo RR clásico
+        
+        Args:
+            pid: PID del proceso a terminar
+        """
+        try:
+            proc = psutil.Process(pid)
+            proc.terminate()  # Intenta terminar suavemente
+            proc.wait(timeout=3)  # Espera máximo 3 segundos
+        except psutil.NoSuchProcess:
+            # El proceso ya no existe (normal si ya terminó)
+            pass
+        except psutil.TimeoutExpired:
+            # Si no termina en 3 segundos, forzar cierre
+            try:
+                proc.kill()
+            except:
+                pass
+        except psutil.AccessDenied:
+            # No tiene permisos (proceso del sistema o protegido)
+            print(f"⚠️ No se pudo terminar el proceso {pid} (permisos denegados)")
+        except Exception as e:
+            # Cualquier otro error
+            print(f"⚠️ Error al terminar proceso {pid}: {e}")
     
     # ==================== ALGORITMOS DE PLANIFICACIÓN ====================
     
@@ -190,6 +216,9 @@ class ProcessMonitor(BaseMonitor):
             # Tiempo de espera (Te) = Tr - Ts (según fórmula académica)
             process.waiting_time = process.turnaround_time - process.burst_time
             
+            # Terminar el proceso real del sistema operativo
+            self._terminate_real_process(process.pid)
+            
             execution_order.append({
                 'name': process.name,
                 'pid': process.pid,
@@ -219,7 +248,7 @@ class ProcessMonitor(BaseMonitor):
     
     def run_sjf(self) -> Dict[str, Any]:
         """
-        Ejecuta el algoritmo SJF Non-Preemptive (Shortest Job First)
+        Ejecuta el algoritmo SJF (Shortest Job First)
         Los procesos se ejecutan por orden de ráfaga más corta,
         considerando los tiempos de llegada dinámicamente
         
@@ -264,8 +293,11 @@ class ProcessMonitor(BaseMonitor):
                 # Tiempo de retorno (Tr) = Tf - Tll
                 process.turnaround_time = process.completion_time - process.arrival_time
                 
-                # Tiempo de espera (Te) = Tr - Ts (según fórmula académica)
+                # Tiempo de espera (Te) = Tr - Ts
                 process.waiting_time = process.turnaround_time - process.burst_time
+                
+                # Terminar el proceso real del sistema operativo
+                self._terminate_real_process(process.pid)
                 
                 execution_order.append({
                     'name': process.name,
@@ -329,6 +361,11 @@ class ProcessMonitor(BaseMonitor):
         execution_order = []
         completed_processes = []
         
+        # Variables para rastrear vueltas
+        round_number = 1
+        processes_in_current_round = len(queue)
+        processes_executed_in_round = 0
+        
         while queue:
             process = queue.pop(0)
             
@@ -350,22 +387,34 @@ class ProcessMonitor(BaseMonitor):
                 'start': current_time,
                 'end': current_time + execution_time,
                 'burst': execution_time,
-                'remaining': process.remaining_time - execution_time
+                'remaining': process.remaining_time - execution_time,
+                'round': round_number
             })
             
             # Actualizar tiempo y proceso
             current_time += execution_time
             process.remaining_time -= execution_time
+            processes_executed_in_round += 1
             
             # Si el proceso terminó
             if process.remaining_time == 0:
                 process.completion_time = current_time
                 process.turnaround_time = process.completion_time - process.arrival_time
                 process.waiting_time = process.turnaround_time - process.burst_time
+                
+                # Terminar el proceso real del sistema operativo (freeMem en RR clásico)
+                self._terminate_real_process(process.pid)
+                
                 completed_processes.append(process)
             else:
                 # El proceso vuelve a la cola
                 queue.append(process)
+            
+            # Verificar si completamos una vuelta
+            if processes_executed_in_round == processes_in_current_round:
+                round_number += 1
+                processes_in_current_round = len(queue)
+                processes_executed_in_round = 0
         
         # Calcular promedios
         avg_waiting = sum(p.waiting_time for p in completed_processes) / len(completed_processes)
@@ -377,11 +426,12 @@ class ProcessMonitor(BaseMonitor):
             'processes': [p.to_dict() for p in completed_processes],
             'execution_order': execution_order,
             'statistics': {
-                'avg_waiting_time': int(avg_waiting),
+                 'avg_waiting_time': int(avg_waiting),
                 'avg_turnaround_time': int(avg_turnaround),
                 'total_time': current_time,
                 'num_processes': len(completed_processes),
-                'context_switches': len(execution_order) - 1
+                'context_switches': len(execution_order) - 1,
+                'total_rounds': round_number - 1
             }
         }
         

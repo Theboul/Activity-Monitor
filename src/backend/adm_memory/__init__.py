@@ -1,18 +1,20 @@
 """
-Paquete de administracion de memoria para el Activity Monitor.
-
-Expone utilidades para simular estrategias de asignacion dinamica de memoria
-mediante bloques libres/ocupados, similar al simulador de procesos.
+Módulo de administración de memoria
+Simula asignación de procesos con particiones fijas y variables
 """
-
-from .allocation_strategy import AllocationStrategy
-from .memory_block import MemoryBlock
-from .memory_manager import MemoryManager
+from .MemoryProcess import MemoryProcess
+from .Partition import Partition
+from .algorithm import MemoryAlgorithm, PartitionType
 from .memory_monitor import MemoryMonitor
+from .fixed_partition_manager import FixedPartitionManager
+from .variable_partition_manager import VariablePartitionManager
 
 __all__ = [
-    "AllocationStrategy",
-    "MemoryBlock",
-    "MemoryManager",
-    "MemoryMonitor",
+    'MemoryProcess',
+    'Partition',
+    'MemoryAlgorithm',
+    'PartitionType',
+    'MemoryMonitor',
+    'FixedPartitionManager',
+    'VariablePartitionManager'
 ]

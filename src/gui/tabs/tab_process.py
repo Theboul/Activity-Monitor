@@ -64,14 +64,33 @@ class ProcessTab(ctk.CTkFrame):
         )
         self.process_list.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Botón para cargar procesos
+        # Frame para botones de carga
+        buttons_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        buttons_frame.pack(pady=5, padx=10, fill="x")
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
+        
+        # Botón para cargar procesos (primera vez)
         btn_load = ctk.CTkButton(
-            left_frame,
-            text="🔄 Cargar Procesos del Sistema",
+            buttons_frame,
+            text="🔄 Cargar Procesos",
             command=self._load_real_processes,
-            height=35
+            height=35,
+            fg_color="#2ecc71",
+            hover_color="#27ae60"
         )
-        btn_load.pack(pady=5, padx=10, fill="x")
+        btn_load.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        
+        # Botón para refrescar procesos
+        btn_refresh = ctk.CTkButton(
+            buttons_frame,
+            text="🔃 Refrescar Lista",
+            command=self._refresh_processes,
+            height=35,
+            fg_color="#3498db",
+            hover_color="#2980b9"
+        )
+        btn_refresh.grid(row=0, column=1, padx=(5, 0), sticky="ew")
         
         # Frame para procesos seleccionados
         selected_frame = ctk.CTkFrame(left_frame)
@@ -307,6 +326,39 @@ class ProcessTab(ctk.CTkFrame):
         
         self.selected_label.configure(text="0 procesos")
         self._show_message("🗑️ Selección limpiada", "info")
+    
+    def _refresh_processes(self):
+        """Recarga la lista de procesos del sistema y limpia la selección"""
+        # Limpiar selección primero (porque los procesos anteriores ya no existen)
+        self.process_monitor.clear_selected_processes()
+        
+        # Limpiar la lista visual
+        for widget in self.process_list.winfo_children():
+            widget.destroy()
+        
+        # Limpiar el tracking de items seleccionados
+        self.selected_process_items.clear()
+        
+        # Recargar procesos del sistema
+        data = self.process_monitor.collect_data()
+        processes = data.get('real_processes', [])
+        
+        if not processes:
+            ctk.CTkLabel(
+                self.process_list,
+                text="No se pudieron cargar procesos",
+                text_color="red"
+            ).pack(pady=10)
+            self._show_message("❌ Error al cargar procesos", "error")
+            return
+        
+        # Mostrar los procesos
+        for proc in processes[:50]:
+            self._create_process_item(proc)
+        
+        # Actualizar contador
+        self.selected_label.configure(text="0 procesos")
+        self._show_message(f"🔃 Lista actualizada: {len(processes[:50])} procesos disponibles", "info")
     
     def _disable_selected_checkbox(self, pid: int):
         """Deshabilita el checkbox de un proceso seleccionado"""

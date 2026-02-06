@@ -4,8 +4,9 @@ from src.gui.tabs.tab_process import ProcessTab
 from src.gui.tabs.tab_memory import MemoryTab
 from src.backend.adm_hardware.hardware_monitor import HardwareMonitor
 from src.backend.adm_process_simulator.process_monitor import ProcessMonitor
-from src.backend.adm_memory.memory_monitor import MemoryMonitor
-
+from src.backend.adm_memory import MemoryMonitor
+from src.gui.tabs.tab_usb import USBTab
+from src.backend.adm_storage_unit.storage_monitor import StorageMonitor
 
 class MonitorGUI(ctk.CTk):
     """Ventana principal de la aplicación Monitor de Sistema"""
@@ -100,8 +101,11 @@ class MonitorGUI(ctk.CTk):
         # Crear monitor de procesos (no necesita auto-start, es bajo demanda)
         self.process_monitor = ProcessMonitor(update_interval=1.0)
 
-        # Crear monitor de memoria (sí requiere callback para refrescar bloques)
-        self.memory_monitor = MemoryMonitor(update_interval=1.5)
+        # Crear monitor de memoria
+        self.memory_monitor = MemoryMonitor(update_interval=2.0)
+
+        # NUEVO: Instancia el monitor de USB
+        self.usb_monitor = StorageMonitor(update_interval=3.0)
     
     def _start_monitors(self):
         """Inicia los monitores después de crear la UI"""
@@ -204,21 +208,25 @@ class MonitorGUI(ctk.CTk):
                 print("[OK] ✓ Process tab limpiado")
             except Exception as e:
                 print(f"[ERROR] ✗ Error al limpiar process_tab: {e}")
-
-        # 5. Limpiar tab de memoria
-        if hasattr(self, 'memory_tab'):
-            print("[INFO] 🧹 Limpiando referencias de memory_tab...")
+        
+        # 4. Detener monitor de memoria
+        if hasattr(self, 'memory_monitor'):
+            print("[INFO] 🔧 Deteniendo memory monitor...")
             try:
-                self.memory_tab.cleanup()
-                print("[OK] ✓ Memory tab limpiado")
+                self.memory_monitor.stop()
+                print("[OK] ✓ Memory monitor detenido")
             except Exception as e:
-                print(f"[ERROR] ✗ Error al limpiar memory_tab: {e}")
-
-        # 6. Destruir la ventana
+                print(f"[ERROR] ✗ Error al detener memory monitor: {e}")
+        
+        if hasattr(self, 'usb_monitor'):
+                print("[INFO] 🔧 Deteniendo USB monitor...")
+                self.usb_monitor.stop()
+        
+        # 5. Destruir la ventana
         print("[INFO] 💥 Destruyendo ventana...")
         self.destroy()
-
-        # 7. Forzar salida del programa
+        
+        # 6. Forzar salida del programa
         print("[INFO] 🚪 Forzando salida del proceso Python...")
         print("="*60)
         print("[INFO] ✅ APLICACIÓN CERRADA COMPLETAMENTE")
@@ -237,3 +245,10 @@ class MonitorGUI(ctk.CTk):
             super().destroy()
         except Exception as e:
             print(f"[WARNING] Error en destroy: {e}")
+
+    def _add_usb_tab(self):
+        """Añade la pestaña de Archivos USB real conectada al monitor"""
+        tab = self.tab_view.add("Archivos USB")
+        # Pasamos el monitor como dependencia a la pestaña
+        self.usb_tab = USBTab(tab, self.usb_monitor)
+        self.usb_tab.pack(fill="both", expand=True)
